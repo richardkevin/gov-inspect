@@ -50,6 +50,13 @@ export type ListarNotasFiscaisParams = {
   nomeProduto?: string;
 };
 
+export type ListarNotasFiscaisPorMesParams = {
+  mes: string;
+  cnpjEmitente?: string;
+  codigoOrgao?: string;
+  nomeProduto?: string;
+};
+
 export class PortalApiError extends Error {
   status: number;
 
@@ -96,6 +103,48 @@ export async function listarNotasFiscais(
   if (params.codigoOrgao) query.set("codigoOrgao", params.codigoOrgao);
   if (params.nomeProduto) query.set("nomeProduto", params.nomeProduto);
   return request<NotaFiscal[]>(`/notas-fiscais?${query.toString()}`, apiKey);
+}
+
+const MAX_PAGINAS_POR_MES = 50;
+const TAMANHO_PAGINA_API = 20;
+
+function estaNoPeriodo(dataEmissao: string, inicio: Date, fim: Date): boolean {
+  const d = toDate(dataEmissao);
+  if (!d) return false;
+  return d >= inicio && d <= fim;
+}
+
+export async function listarNotasFiscaisPorMes(
+  params: ListarNotasFiscaisPorMesParams,
+  apiKey: string,
+): Promise<NotaFiscal[]> {
+  const match = /^(\d{4})-(\d{2})$/.exec(params.mes);
+  if (!match) throw new Error("Informe o mês no formato AAAA-MM.");
+  const ano = Number(match[1]);
+  const mesNumero = Number(match[2]);
+  if (mesNumero < 1 || mesNumero > 12)
+    throw new Error("Mês inválido. Use um valor entre 01 e 12.");
+
+  const inicio = new Date(ano, mesNumero - 1, 1, 0, 0, 0);
+  const fim = new Date(ano, mesNumero, 0, 23, 59, 59);
+
+  const coletadas: NotaFiscal[] = [];
+  for (let pagina = 1; pagina <= MAX_PAGINAS_POR_MES; pagina++) {
+    const notas = await listarNotasFiscais(
+      {
+        pagina,
+        cnpjEmitente: params.cnpjEmitente,
+        codigoOrgao: params.codigoOrgao,
+        nomeProduto: params.nomeProduto,
+      },
+      apiKey,
+    );
+    coletadas.push(
+      ...notas.filter((nota) => estaNoPeriodo(nota.dataEmissao, inicio, fim)),
+    );
+    if (notas.length < TAMANHO_PAGINA_API) break;
+  }
+  return coletadas;
 }
 
 export async function consultarNotaFiscalPorChave(

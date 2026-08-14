@@ -66,6 +66,37 @@
   text-decoration-thickness: 2px;
 }
 
+/* Nav tabs */
+.navTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.navTabs a {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  text-decoration: none;
+}
+
+.navTabs a:hover {
+  background: var(--hover);
+  color: var(--foreground);
+}
+
+.navTabs a.active {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
 /* Cards */
 .card {
   display: flex;
