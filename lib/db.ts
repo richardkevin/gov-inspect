@@ -45,7 +45,7 @@ export type ItemRow = {
 
 export type FiltrosNotas = {
   q?: string;
-  mes?: string;
+  mes?: string[];
   codigoOrgao?: string[];
   municipio?: string[];
   orgao?: string[];
@@ -153,10 +153,7 @@ function montarWhere(filtros: FiltrosNotas): {
     )`);
     parametros.q = q;
   }
-  if (filtros.mes) {
-    clausulas.push("mes = @mes");
-    parametros.mes = filtros.mes;
-  }
+  adicionarIn("mes", filtros.mes, clausulas, parametros);
   adicionarIn("codigo_orgao", filtros.codigoOrgao, clausulas, parametros);
   adicionarIn("municipio_emitente", filtros.municipio, clausulas, parametros);
   adicionarIn("orgao", filtros.orgao, clausulas, parametros);
@@ -229,6 +226,7 @@ export type OpcoesDistintas = {
   municipios: string[];
   orgaos: string[];
   orgaosSuperior: string[];
+  meses: string[];
 };
 
 export function opcoesDoRecorte(
@@ -255,6 +253,7 @@ export function opcoesDoRecorte(
     municipios: distintos((n) => n.municipioEmitente),
     orgaos: distintos((n) => n.orgao),
     orgaosSuperior: distintos((n) => n.orgaoSuperior),
+    meses: distintos((n) => n.mes),
   };
 }
 

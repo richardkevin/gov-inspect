@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
   const filtros: FiltrosNotas = {
     q: sp.get("q")?.trim() || undefined,
-    mes: sp.get("mes")?.trim() || undefined,
+    mes: multi("mes"),
     codigoOrgao: multi("codigoOrgao"),
     municipio: multi("municipio"),
     orgao: multi("orgao"),

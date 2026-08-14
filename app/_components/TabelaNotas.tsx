@@ -47,6 +47,7 @@ type LinhaNota = {
 
 type FiltrosDigitados = {
   q: string;
+  meses: string[];
   municipio: string[];
   orgao: string[];
   orgaoSuperior: string[];
@@ -60,6 +61,7 @@ type DetalheNota = {
 
 const filtrosVazios: FiltrosDigitados = {
   q: "",
+  meses: [],
   municipio: [],
   orgao: [],
   orgaoSuperior: [],
@@ -106,6 +108,7 @@ type OpcoesVisao = {
   municipios: string[];
   orgaos: string[];
   orgaosSuperior: string[];
+  meses: string[];
 };
 
 const opcoesVazias: OpcoesVisao = {
@@ -113,6 +116,7 @@ const opcoesVazias: OpcoesVisao = {
   municipios: [],
   orgaos: [],
   orgaosSuperior: [],
+  meses: [],
 };
 
 export default function TabelaNotas({
@@ -136,9 +140,13 @@ export default function TabelaNotas({
     pageSize: 25,
   });
   const [sortModel, setSortModel] = useState<GridSortModel>([]);
-  const [filtrosDigitados, setFiltrosDigitados] =
-    useState<FiltrosDigitados>(filtrosVazios);
-  const [filtros, setFiltros] = useState<FiltrosDigitados>(filtrosVazios);
+  const [filtrosDigitados, setFiltrosDigitados] = useState<FiltrosDigitados>(
+    () => ({ ...filtrosVazios, meses: opcoesIniciais.meses }),
+  );
+  const [filtros, setFiltros] = useState<FiltrosDigitados>(() => ({
+    ...filtrosVazios,
+    meses: opcoesIniciais.meses,
+  }));
   const [opcoesDaVisao, setOpcoesDaVisao] =
     useState<OpcoesVisao>(opcoesIniciais);
 
@@ -154,6 +162,7 @@ export default function TabelaNotas({
         (a, b) => a.localeCompare(b, "pt-BR"),
       );
     return {
+      meses: mesclar(opcoesDaVisao.meses, filtrosDigitados.meses),
       emitentes: mesclar(opcoesDaVisao.emitentes, filtrosDigitados.emitente),
       municipios: mesclar(opcoesDaVisao.municipios, filtrosDigitados.municipio),
       orgaos: mesclar(opcoesDaVisao.orgaos, filtrosDigitados.orgao),
@@ -170,6 +179,7 @@ export default function TabelaNotas({
       tamanhoPagina: String(paginationModel.pageSize),
     });
     if (filtros.q) params.set("q", filtros.q);
+    for (const v of filtros.meses) params.append("mes", v);
     for (const v of filtros.emitente) params.append("emitente", v);
     for (const v of filtros.municipio) params.append("municipio", v);
     for (const v of filtros.orgao) params.append("orgao", v);
@@ -249,17 +259,9 @@ export default function TabelaNotas({
         width: 170,
       },
       {
-        field: "razaoSocialEmitente",
-        headerName: "Emitente",
-        width: 300,
-        renderCell: ({ row }) => (
-          <Stack>
-            <span>{row.razaoSocialEmitente}</span>
-            <Typography variant="caption" color="text.secondary">
-              {row.cpfCnpjEmitente}
-            </Typography>
-          </Stack>
-        ),
+        field: "orgaoSuperior",
+        headerName: "Órgão superior",
+        width: 230,
       },
       {
         field: "orgao",
@@ -275,9 +277,17 @@ export default function TabelaNotas({
         ),
       },
       {
-        field: "orgaoSuperior",
-        headerName: "Órgão superior",
-        width: 230,
+        field: "razaoSocialEmitente",
+        headerName: "Emitente",
+        width: 300,
+        renderCell: ({ row }) => (
+          <Stack>
+            <span>{row.razaoSocialEmitente}</span>
+            <Typography variant="caption" color="text.secondary">
+              {row.cpfCnpjEmitente}
+            </Typography>
+          </Stack>
+        ),
       },
       {
         field: "valor",
@@ -287,13 +297,6 @@ export default function TabelaNotas({
         align: "right",
         headerAlign: "right",
         valueFormatter: (value: number | null) => fmtMoeda(value),
-      },
-      {
-        field: "mes",
-        headerName: "Mês",
-        width: 100,
-        valueFormatter: (value: string) =>
-          `${value.slice(5, 7)}/${value.slice(0, 4)}`,
       },
     ],
     [],
@@ -582,8 +585,6 @@ function DetalheNotaPanel({ detalhe }: { detalhe: DetalheNota }) {
                 <TableRow>
                   <TableCell>Item</TableCell>
                   <TableCell>Descrição do produto/serviço</TableCell>
-                  <TableCell>NCM</TableCell>
-                  <TableCell>CFOP</TableCell>
                   <TableCell align="right">Qtd</TableCell>
                   <TableCell align="right">Unit.</TableCell>
                   <TableCell align="right">Total</TableCell>
@@ -594,10 +595,6 @@ function DetalheNotaPanel({ detalhe }: { detalhe: DetalheNota }) {
                   <TableRow key={item.numeroProduto ?? item.descricao}>
                     <TableCell>{item.numeroProduto ?? "—"}</TableCell>
                     <TableCell>{item.descricao ?? "—"}</TableCell>
-                    <TableCell>
-                      {item.codigoNcm ?? item.ncmTipo ?? "—"}
-                    </TableCell>
-                    <TableCell>{item.cfop ?? "—"}</TableCell>
                     <TableCell align="right">
                       {item.quantidade != null
                         ? `${item.quantidade}${item.unidade ? ` ${item.unidade}` : ""}`
@@ -628,6 +625,7 @@ function SelectMulti({
   opcoes,
   valor,
   aoMudar,
+  formatarOpcao,
   larguraMinima,
   larguraMaxima,
 }: {
@@ -635,6 +633,7 @@ function SelectMulti({
   opcoes: string[];
   valor: string[];
   aoMudar: (valor: string[]) => void;
+  formatarOpcao?: (opcao: string) => string;
   larguraMinima?: number;
   larguraMaxima?: number;
 }) {
@@ -651,8 +650,10 @@ function SelectMulti({
     if (!precisaBusca) return opcoes;
     const termo = busca.trim().toLowerCase();
     if (!termo) return [];
-    return opcoes.filter((o) => o.toLowerCase().includes(termo));
-  }, [busca, opcoes, precisaBusca]);
+    return opcoes.filter((o) =>
+      (formatarOpcao ? formatarOpcao(o) : o).toLowerCase().includes(termo),
+    );
+  }, [busca, formatarOpcao, opcoes, precisaBusca]);
 
   const truncadas = opcoesFiltradas.length > MAX_EXIBIDOS;
   const exibidas = truncadas
