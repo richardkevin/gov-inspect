@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# dados baixados do Portal da Transparência e banco local
+/data
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
