@@ -11,8 +11,8 @@ export type NotaRow = {
   tipoEvento: string | null;
   dataEvento: string | null;
   cpfCnpjEmitente: string | null;
-  razaoSocial: string | null;
-  inscricaoEstadual: string | null;
+  razaoSocialEmitente: string | null;
+  inscricaoEstadualEmitente: string | null;
   ufEmitente: string | null;
   municipioEmitente: string | null;
   codigoOrgaoSuperior: string | null;
@@ -47,6 +47,8 @@ export type FiltrosNotas = {
   q?: string;
   mes?: string;
   codigoOrgao?: string;
+  municipio?: string;
+  orgao?: string;
   valorMin?: string;
   valorMax?: string;
   dataInicio?: string;
@@ -59,7 +61,9 @@ export type OrdenacaoNotas = {
     | "valor"
     | "municipioEmitente"
     | "orgao"
-    | "razaoSocial"
+    | "orgaoSuperior"
+    | "razaoSocialEmitente"
+    | "tipoEvento"
     | "chave"
     | "mes";
   direcao: "asc" | "desc";
@@ -70,7 +74,9 @@ const COLUNAS_ORDENAVEIS: Record<OrdenacaoNotas["campo"], string> = {
   valor: "valor",
   municipioEmitente: "municipio_emitente",
   orgao: "orgao",
-  razaoSocial: "razao_social_emitente",
+  orgaoSuperior: "orgao_superior",
+  razaoSocialEmitente: "razao_social_emitente",
+  tipoEvento: "tipo_evento",
   chave: "chave",
   mes: "mes",
 };
@@ -98,6 +104,18 @@ function parseValorBrasil(value: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function snakeToCamel(value: string): string {
+  return value.replace(/_([a-z])/g, (_m, letra: string) => letra.toUpperCase());
+}
+
+function normalizarLinha<T extends object>(linha: T): T {
+  const normalizado: Record<string, unknown> = {};
+  for (const [chave, valor] of Object.entries(linha)) {
+    normalizado[snakeToCamel(chave)] = valor;
+  }
+  return normalizado as T;
+}
+
 function montarWhere(filtros: FiltrosNotas): {
   clausulas: string[];
   parametros: Record<string, string | number>;
@@ -123,6 +141,14 @@ function montarWhere(filtros: FiltrosNotas): {
   if (filtros.codigoOrgao) {
     clausulas.push("codigo_orgao = @codigoOrgao");
     parametros.codigoOrgao = filtros.codigoOrgao.replace(/\D/g, "");
+  }
+  if (filtros.municipio) {
+    clausulas.push("municipio_emitente LIKE @municipio ESCAPE '\\'");
+    parametros.municipio = `%${escapeLike(filtros.municipio.trim())}%`;
+  }
+  if (filtros.orgao) {
+    clausulas.push("orgao LIKE @orgao ESCAPE '\\'");
+    parametros.orgao = `%${escapeLike(filtros.orgao.trim())}%`;
   }
   if (filtros.valorMin) {
     const valorMin = parseValorBrasil(filtros.valorMin);
@@ -180,29 +206,53 @@ export function listarNotas(
     (clausulas.length ? ` WHERE ${clausulas.join(" AND ")}` : "") +
     ` ORDER BY ${coluna} ${sentido}, chave ASC` +
     ` LIMIT @limite OFFSET @offset`;
-  return getDb()
+  const linhas = getDb()
     .prepare(sql)
     .all({ ...parametros, limite, offset }) as NotaRow[];
+  return linhas.map(normalizarLinha);
 }
 
 export function buscarNota(chave: string): NotaRow | null {
   const row = getDb()
     .prepare("SELECT * FROM nota WHERE chave = ?")
     .get(chave) as NotaRow | undefined;
-  return row ?? null;
+  return row ? normalizarLinha(row) : null;
 }
 
 export function listarItens(chave: string): ItemRow[] {
-  return getDb()
+  const itens = getDb()
     .prepare("SELECT * FROM item_nota WHERE chave = ? ORDER BY numero_produto")
     .all(chave) as ItemRow[];
+  return itens.map(normalizarLinha);
 }
 
-export function listarMeses(): string[] {
-  const rows = getDb()
-    .prepare("SELECT DISTINCT mes FROM nota ORDER BY mes")
-    .all() as { mes: string }[];
-  return rows.map((r) => r.mes);
+let cacheListas: {
+  municipios: string[];
+  orgaos: string[];
+  codigosOrgao: string[];
+} | null = null;
+
+export function listarValoresDistintos(): {
+  municipios: string[];
+  orgaos: string[];
+  codigosOrgao: string[];
+} {
+  if (cacheListas) return cacheListas;
+  const db = getDb();
+  const distintas = (coluna: string): string[] =>
+    (
+      db
+        .prepare(
+          `SELECT DISTINCT ${coluna} AS v FROM nota WHERE ${coluna} IS NOT NULL AND ${coluna} != '' ORDER BY v`,
+        )
+        .all() as { v: string }[]
+    ).map((r) => r.v);
+  cacheListas = {
+    municipios: distintas("municipio_emitente"),
+    orgaos: distintas("orgao"),
+    codigosOrgao: distintas("codigo_orgao"),
+  };
+  return cacheListas;
 }
 
 export function resumoNotas(): {

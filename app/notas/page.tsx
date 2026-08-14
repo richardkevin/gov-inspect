@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import {
   contarNotas,
-  listarMeses,
   listarNotas,
+  listarValoresDistintos,
   resumoNotas,
 } from "../../lib/db";
 import { Hero, styles } from "../_components/nf";
@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 export default function NotasPage() {
   const notasIniciais = listarNotas({}, { limite: 25, offset: 0 });
   const totalInicial = contarNotas();
-  const meses = listarMeses();
+  const { municipios, orgaos, codigosOrgao } = listarValoresDistintos();
   const resumo = resumoNotas();
 
   return (
@@ -35,7 +35,9 @@ export default function NotasPage() {
           <TabelaNotas
             notasIniciais={notasIniciais}
             totalInicial={totalInicial}
-            meses={meses}
+            municipios={municipios}
+            orgaos={orgaos}
+            codigosOrgao={codigosOrgao}
             resumo={resumo}
           />
         </section>

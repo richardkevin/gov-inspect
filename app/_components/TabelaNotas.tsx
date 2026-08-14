@@ -2,6 +2,7 @@
 
 import CloseIcon from "@mui/icons-material/Close";
 import SearchIcon from "@mui/icons-material/Search";
+import Autocomplete from "@mui/material/Autocomplete";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
@@ -36,7 +37,7 @@ type LinhaNota = {
   chave: string;
   dataEmissao: string | null;
   municipioEmitente: string | null;
-  razaoSocial: string | null;
+  razaoSocialEmitente: string | null;
   cpfCnpjEmitente: string | null;
   orgao: string | null;
   codigoOrgao: string | null;
@@ -49,10 +50,9 @@ type LinhaNota = {
 
 type FiltrosDigitados = {
   q: string;
-  mes: string;
   codigoOrgao: string;
-  valorMin: string;
-  valorMax: string;
+  municipio: string;
+  orgao: string;
 };
 
 type DetalheNota = {
@@ -60,27 +60,11 @@ type DetalheNota = {
   itens: ItemRow[];
 };
 
-const NOMES_MESES = [
-  "janeiro",
-  "fevereiro",
-  "março",
-  "abril",
-  "maio",
-  "junho",
-  "julho",
-  "agosto",
-  "setembro",
-  "outubro",
-  "novembro",
-  "dezembro",
-];
-
 const filtrosVazios: FiltrosDigitados = {
   q: "",
-  mes: "",
   codigoOrgao: "",
-  valorMin: "",
-  valorMax: "",
+  municipio: "",
+  orgao: "",
 };
 
 function toLinha(nota: NotaRow): LinhaNota {
@@ -89,7 +73,7 @@ function toLinha(nota: NotaRow): LinhaNota {
     chave: nota.chave,
     dataEmissao: nota.dataEmissao,
     municipioEmitente: nota.municipioEmitente,
-    razaoSocial: nota.razaoSocial,
+    razaoSocialEmitente: nota.razaoSocialEmitente,
     cpfCnpjEmitente: nota.cpfCnpjEmitente,
     orgao: nota.orgao,
     codigoOrgao: nota.codigoOrgao,
@@ -116,12 +100,6 @@ const fmtData = (v: string | null): string => {
   return new Intl.DateTimeFormat("pt-BR").format(d);
 };
 
-function fmtMes(mes: string): string {
-  const [, mm, yy] = /^(\d{4})-(\d{2})$/.exec(mes) ?? [];
-  if (!mm || !yy) return mes;
-  return `${NOMES_MESES[Number(mm) - 1]}/${yy}`;
-}
-
 function fmtChave(chave: string): string {
   return `${chave.slice(0, 4)} ${chave.slice(4, 8)} ${chave.slice(8, 12)} ${chave.slice(12, 16)} ${chave.slice(16, 20)} ${chave.slice(20, 24)} ${chave.slice(24, 34)} ${chave.slice(34, 44)}`;
 }
@@ -129,12 +107,16 @@ function fmtChave(chave: string): string {
 export default function TabelaNotas({
   notasIniciais,
   totalInicial,
-  meses,
+  municipios,
+  orgaos,
+  codigosOrgao,
   resumo,
 }: {
   notasIniciais: NotaRow[];
   totalInicial: number;
-  meses: string[];
+  municipios: string[];
+  orgaos: string[];
+  codigosOrgao: string[];
   resumo: { total: number; valorTotal: number | null; meses: number };
 }) {
   const [linhas, setLinhas] = useState<LinhaNota[]>(() =>
@@ -163,10 +145,9 @@ export default function TabelaNotas({
       tamanhoPagina: String(paginationModel.pageSize),
     });
     if (filtros.q) params.set("q", filtros.q);
-    if (filtros.mes) params.set("mes", filtros.mes);
     if (filtros.codigoOrgao) params.set("codigoOrgao", filtros.codigoOrgao);
-    if (filtros.valorMin) params.set("valorMin", filtros.valorMin);
-    if (filtros.valorMax) params.set("valorMax", filtros.valorMax);
+    if (filtros.municipio) params.set("municipio", filtros.municipio);
+    if (filtros.orgao) params.set("orgao", filtros.orgao);
     const sorteio = sortModel[0];
     if (sorteio?.sort) {
       params.set("sortField", sorteio.field);
@@ -229,12 +210,6 @@ export default function TabelaNotas({
   const colunas = useMemo<GridColDef<LinhaNota>[]>(
     () => [
       {
-        field: "chave",
-        headerName: "Chave de acesso",
-        width: 210,
-        sortable: true,
-      },
-      {
         field: "dataEmissao",
         headerName: "Emissão",
         width: 110,
@@ -246,12 +221,12 @@ export default function TabelaNotas({
         width: 170,
       },
       {
-        field: "razaoSocial",
+        field: "razaoSocialEmitente",
         headerName: "Emitente",
         width: 300,
         renderCell: ({ row }) => (
           <Stack>
-            <span>{row.razaoSocial}</span>
+            <span>{row.razaoSocialEmitente}</span>
             <Typography variant="caption" color="text.secondary">
               {row.cpfCnpjEmitente}
             </Typography>
@@ -302,7 +277,8 @@ export default function TabelaNotas({
         field: "mes",
         headerName: "Mês",
         width: 100,
-        valueFormatter: (value: string) => fmtMes(value),
+        valueFormatter: (value: string) =>
+          `${value.slice(5, 7)}/${value.slice(0, 4)}`,
       },
     ],
     [],
@@ -364,64 +340,59 @@ export default function TabelaNotas({
                 },
               }}
             />
+            <Autocomplete
+              size="small"
+              sx={{ width: 230 }}
+              options={municipios}
+              value={filtrosDigitados.municipio || null}
+              onChange={(_event, valor) =>
+                setFiltrosDigitados((f) => ({
+                  ...f,
+                  municipio: valor ?? "",
+                }))
+              }
+              renderInput={(params) => (
+                <TextField {...params} label="Município do emitente" />
+              )}
+            />
             <Select
               size="small"
               displayEmpty
-              value={filtrosDigitados.mes}
-              onChange={(e) => {
+              value={filtrosDigitados.orgao}
+              onChange={(e) =>
                 setFiltrosDigitados((f) => ({
                   ...f,
-                  mes: e.target.value as string,
-                }));
-              }}
-              sx={{ minWidth: 130 }}
+                  orgao: e.target.value as string,
+                }))
+              }
+              sx={{ minWidth: 220, maxWidth: 340 }}
             >
-              <MenuItem value="">Todos os meses</MenuItem>
-              {meses.map((m) => (
-                <MenuItem key={m} value={m}>
-                  {fmtMes(m)}
+              <MenuItem value="">Todos os órgãos destinatários</MenuItem>
+              {orgaos.map((o) => (
+                <MenuItem key={o} value={o}>
+                  {o}
                 </MenuItem>
               ))}
             </Select>
-            <TextField
-              label="Código do órgão"
+            <Select
               size="small"
-              inputMode="numeric"
-              sx={{ width: 150 }}
+              displayEmpty
               value={filtrosDigitados.codigoOrgao}
               onChange={(e) =>
                 setFiltrosDigitados((f) => ({
                   ...f,
-                  codigoOrgao: e.target.value.replace(/\D/g, ""),
+                  codigoOrgao: e.target.value as string,
                 }))
               }
-            />
-            <TextField
-              label="Valor mín."
-              size="small"
-              inputMode="numeric"
-              sx={{ width: 130 }}
-              value={filtrosDigitados.valorMin}
-              onChange={(e) =>
-                setFiltrosDigitados((f) => ({
-                  ...f,
-                  valorMin: e.target.value.replace(/[^\d.,]/g, ""),
-                }))
-              }
-            />
-            <TextField
-              label="Valor máx."
-              size="small"
-              inputMode="numeric"
-              sx={{ width: 130 }}
-              value={filtrosDigitados.valorMax}
-              onChange={(e) =>
-                setFiltrosDigitados((f) => ({
-                  ...f,
-                  valorMax: e.target.value.replace(/[^\d.,]/g, ""),
-                }))
-              }
-            />
+              sx={{ minWidth: 150 }}
+            >
+              <MenuItem value="">Todos os códigos</MenuItem>
+              {codigosOrgao.map((c) => (
+                <MenuItem key={c} value={c}>
+                  {c}
+                </MenuItem>
+              ))}
+            </Select>
             <Button type="submit" variant="contained" disableElevation>
               Aplicar
             </Button>
@@ -555,7 +526,7 @@ function DetalheNotaPanel({ detalhe }: { detalhe: DetalheNota }) {
           <CampoDetalhe label="Valor da nota" valor={fmtMoeda(nota.valor)} />
           <CampoDetalhe
             label="Emitente"
-            valor={[nota.razaoSocial, nota.cpfCnpjEmitente]
+            valor={[nota.razaoSocialEmitente, nota.cpfCnpjEmitente]
               .filter(Boolean)
               .join(" — ")}
           />
