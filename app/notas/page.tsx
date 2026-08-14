@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
-import { contarNotas, listarNotas, resumoNotas } from "../../lib/db";
+import {
+  contarNotas,
+  listarNotas,
+  opcoesDoRecorte,
+  resumoNotas,
+} from "../../lib/db";
 import { Hero, styles } from "../_components/nf";
 import TabelaNotas from "../_components/TabelaNotas";
 
@@ -13,6 +18,7 @@ export const dynamic = "force-dynamic";
 
 export default function NotasPage() {
   const notasIniciais = listarNotas({}, { limite: 25, offset: 0 });
+  const opcoesIniciais = opcoesDoRecorte({}, { limite: 25 * 6, offset: 0 });
   const totalInicial = contarNotas();
   const resumo = resumoNotas();
 
@@ -28,6 +34,7 @@ export default function NotasPage() {
         <section className={styles.card}>
           <TabelaNotas
             notasIniciais={notasIniciais}
+            opcoesIniciais={opcoesIniciais}
             totalInicial={totalInicial}
             resumo={resumo}
           />

@@ -224,6 +224,40 @@ export function listarNotas(
   return linhas.map(normalizarLinha);
 }
 
+export type OpcoesDistintas = {
+  emitentes: string[];
+  municipios: string[];
+  orgaos: string[];
+  orgaosSuperior: string[];
+};
+
+export function opcoesDoRecorte(
+  filtros: FiltrosNotas = {},
+  {
+    limite,
+    offset,
+    ordenacao,
+  }: {
+    limite: number;
+    offset: number;
+    ordenacao?: OrdenacaoNotas;
+  },
+): OpcoesDistintas {
+  const linhas = listarNotas(filtros, { limite, offset, ordenacao });
+  const distintos = (campo: (n: NotaRow) => string | null): string[] =>
+    [
+      ...new Set(
+        linhas.map(campo).filter((v): v is string => v != null && v !== ""),
+      ),
+    ].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  return {
+    emitentes: distintos((n) => n.razaoSocialEmitente),
+    municipios: distintos((n) => n.municipioEmitente),
+    orgaos: distintos((n) => n.orgao),
+    orgaosSuperior: distintos((n) => n.orgaoSuperior),
+  };
+}
+
 export function buscarNota(chave: string): NotaRow | null {
   const row = getDb()
     .prepare("SELECT * FROM nota WHERE chave = ?")

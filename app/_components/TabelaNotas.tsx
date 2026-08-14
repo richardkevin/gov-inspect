@@ -47,7 +47,6 @@ type LinhaNota = {
 
 type FiltrosDigitados = {
   q: string;
-  codigoOrgao: string[];
   municipio: string[];
   orgao: string[];
   orgaoSuperior: string[];
@@ -61,7 +60,6 @@ type DetalheNota = {
 
 const filtrosVazios: FiltrosDigitados = {
   q: "",
-  codigoOrgao: [],
   municipio: [],
   orgao: [],
   orgaoSuperior: [],
@@ -103,12 +101,28 @@ function fmtChave(chave: string): string {
   return `${chave.slice(0, 4)} ${chave.slice(4, 8)} ${chave.slice(8, 12)} ${chave.slice(12, 16)} ${chave.slice(16, 20)} ${chave.slice(20, 24)} ${chave.slice(24, 34)} ${chave.slice(34, 44)}`;
 }
 
+type OpcoesVisao = {
+  emitentes: string[];
+  municipios: string[];
+  orgaos: string[];
+  orgaosSuperior: string[];
+};
+
+const opcoesVazias: OpcoesVisao = {
+  emitentes: [],
+  municipios: [],
+  orgaos: [],
+  orgaosSuperior: [],
+};
+
 export default function TabelaNotas({
   notasIniciais,
+  opcoesIniciais,
   totalInicial,
   resumo,
 }: {
   notasIniciais: NotaRow[];
+  opcoesIniciais: OpcoesVisao;
   totalInicial: number;
   resumo: { total: number; valorTotal: number | null; meses: number };
 }) {
@@ -125,6 +139,8 @@ export default function TabelaNotas({
   const [filtrosDigitados, setFiltrosDigitados] =
     useState<FiltrosDigitados>(filtrosVazios);
   const [filtros, setFiltros] = useState<FiltrosDigitados>(filtrosVazios);
+  const [opcoesDaVisao, setOpcoesDaVisao] =
+    useState<OpcoesVisao>(opcoesIniciais);
 
   const [detalhe, setDetalhe] = useState<DetalheNota | null>(null);
   const [carregandoDetalhe, setCarregandoDetalhe] = useState(false);
@@ -132,30 +148,21 @@ export default function TabelaNotas({
 
   const primeiroRender = useRef(true);
 
-  const opcoesDaVisao = useMemo(() => {
-    const distintos = (
-      campo:
-        | "razaoSocialEmitente"
-        | "municipioEmitente"
-        | "orgao"
-        | "orgaoSuperior"
-        | "codigoOrgao",
-    ): string[] =>
-      [
-        ...new Set(
-          linhas
-            .map((linha) => linha[campo])
-            .filter((v): v is string => v != null),
-        ),
-      ].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const opcoesComSelecionados = useMemo(() => {
+    const mesclar = (opcoes: string[], selecionados: string[]): string[] =>
+      [...new Set([...opcoes, ...selecionados].filter((v) => v !== ""))].sort(
+        (a, b) => a.localeCompare(b, "pt-BR"),
+      );
     return {
-      emitentes: distintos("razaoSocialEmitente"),
-      municipios: distintos("municipioEmitente"),
-      orgaos: distintos("orgao"),
-      orgaosSuperior: distintos("orgaoSuperior"),
-      codigosOrgao: distintos("codigoOrgao"),
+      emitentes: mesclar(opcoesDaVisao.emitentes, filtrosDigitados.emitente),
+      municipios: mesclar(opcoesDaVisao.municipios, filtrosDigitados.municipio),
+      orgaos: mesclar(opcoesDaVisao.orgaos, filtrosDigitados.orgao),
+      orgaosSuperior: mesclar(
+        opcoesDaVisao.orgaosSuperior,
+        filtrosDigitados.orgaoSuperior,
+      ),
     };
-  }, [linhas]);
+  }, [opcoesDaVisao, filtrosDigitados]);
 
   const carregar = useCallback(async () => {
     const params = new URLSearchParams({
@@ -167,7 +174,6 @@ export default function TabelaNotas({
     for (const v of filtros.municipio) params.append("municipio", v);
     for (const v of filtros.orgao) params.append("orgao", v);
     for (const v of filtros.orgaoSuperior) params.append("orgaoSuperior", v);
-    for (const v of filtros.codigoOrgao) params.append("codigoOrgao", v);
     const sorteio = sortModel[0];
     if (sorteio?.sort) {
       params.set("sortField", sorteio.field);
@@ -179,10 +185,12 @@ export default function TabelaNotas({
       if (!res.ok) throw new Error(`Erro ${res.status} na consulta.`);
       const data = (await res.json()) as {
         notas: NotaRow[];
+        opcoes?: OpcoesVisao;
         total: number;
       };
       setLinhas(data.notas.map(toLinha));
       setTotal(data.total);
+      if (data.opcoes) setOpcoesDaVisao(data.opcoes);
     } catch {
       setLinhas([]);
       setTotal(0);
@@ -349,7 +357,7 @@ export default function TabelaNotas({
             />
             <SelectMulti
               label="Emitente"
-              opcoes={opcoesDaVisao.emitentes}
+              opcoes={opcoesComSelecionados.emitentes}
               valor={filtrosDigitados.emitente}
               aoMudar={(v) =>
                 setFiltrosDigitados((f) => ({ ...f, emitente: v }))
@@ -359,7 +367,7 @@ export default function TabelaNotas({
             />
             <SelectMulti
               label="Município do emitente"
-              opcoes={opcoesDaVisao.municipios}
+              opcoes={opcoesComSelecionados.municipios}
               valor={filtrosDigitados.municipio}
               aoMudar={(v) =>
                 setFiltrosDigitados((f) => ({ ...f, municipio: v }))
@@ -368,28 +376,19 @@ export default function TabelaNotas({
             />
             <SelectMulti
               label="Órgão destinatário"
-              opcoes={opcoesDaVisao.orgaos}
+              opcoes={opcoesComSelecionados.orgaos}
               valor={filtrosDigitados.orgao}
               aoMudar={(v) => setFiltrosDigitados((f) => ({ ...f, orgao: v }))}
               larguraMinima={230}
             />
             <SelectMulti
               label="Órgão superior"
-              opcoes={opcoesDaVisao.orgaosSuperior}
+              opcoes={opcoesComSelecionados.orgaosSuperior}
               valor={filtrosDigitados.orgaoSuperior}
               aoMudar={(v) =>
                 setFiltrosDigitados((f) => ({ ...f, orgaoSuperior: v }))
               }
               larguraMinima={230}
-            />
-            <SelectMulti
-              label="Código do órgão"
-              opcoes={opcoesDaVisao.codigosOrgao}
-              valor={filtrosDigitados.codigoOrgao}
-              aoMudar={(v) =>
-                setFiltrosDigitados((f) => ({ ...f, codigoOrgao: v }))
-              }
-              larguraMinima={160}
             />
             <Button type="submit" variant="contained" disableElevation>
               Aplicar
@@ -622,7 +621,7 @@ function DetalheNotaPanel({ detalhe }: { detalhe: DetalheNota }) {
 }
 
 const LIMITE_SEM_BUSCA = 400;
-const MAX_EXIBIDOS = 400;
+const MAX_EXIBIDOS = 200;
 
 function SelectMulti({
   label,

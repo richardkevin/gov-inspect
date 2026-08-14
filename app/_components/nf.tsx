@@ -77,22 +77,6 @@ export function Hero({
       </span>
       <h1>{titulo}</h1>
       <p className={styles.heroText}>{descricao}</p>
-      <div className={styles.heroLinks}>
-        <a
-          href={PORTAL_NOTAS_FISCAIS_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Consulta original no Portal
-        </a>
-        <a
-          href={REGISTRO_API_KEY_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Obter chave de API
-        </a>
-      </div>
     </header>
   );
 }

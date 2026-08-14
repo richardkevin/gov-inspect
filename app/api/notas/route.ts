@@ -4,9 +4,11 @@ import {
   type FiltrosNotas,
   listarNotas,
   type OrdenacaoNotas,
+  opcoesDoRecorte,
 } from "../../../lib/db";
-
 export const dynamic = "force-dynamic";
+
+const BUFFER_PAGINAS = 6;
 
 export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;
@@ -60,6 +62,11 @@ export async function GET(request: NextRequest) {
     offset: (pagina - 1) * tamanhoPagina,
     ordenacao,
   });
+  const opcoes = opcoesDoRecorte(filtros, {
+    limite: tamanhoPagina * BUFFER_PAGINAS,
+    offset: (pagina - 1) * tamanhoPagina,
+    ordenacao,
+  });
 
-  return NextResponse.json({ notas, total, pagina, tamanhoPagina });
+  return NextResponse.json({ notas, opcoes, total, pagina, tamanhoPagina });
 }
