@@ -17,12 +17,22 @@ export async function GET(request: NextRequest) {
     Math.max(10, Number.parseInt(sp.get("tamanhoPagina") ?? "20", 10) || 20),
   );
 
+  const multi = (nome: string): string[] | undefined => {
+    const valores = sp
+      .getAll(nome)
+      .map((v) => v.trim())
+      .filter(Boolean);
+    return valores.length ? valores : undefined;
+  };
+
   const filtros: FiltrosNotas = {
     q: sp.get("q")?.trim() || undefined,
     mes: sp.get("mes")?.trim() || undefined,
-    codigoOrgao: sp.get("codigoOrgao")?.trim() || undefined,
-    municipio: sp.get("municipio")?.trim() || undefined,
-    orgao: sp.get("orgao")?.trim() || undefined,
+    codigoOrgao: multi("codigoOrgao"),
+    municipio: multi("municipio"),
+    orgao: multi("orgao"),
+    orgaoSuperior: multi("orgaoSuperior"),
+    emitente: multi("emitente"),
     valorMin: sp.get("valorMin")?.trim() || undefined,
     valorMax: sp.get("valorMax")?.trim() || undefined,
     dataInicio: sp.get("dataInicio")?.trim() || undefined,

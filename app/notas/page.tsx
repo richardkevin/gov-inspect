@@ -19,7 +19,8 @@ export const dynamic = "force-dynamic";
 export default function NotasPage() {
   const notasIniciais = listarNotas({}, { limite: 25, offset: 0 });
   const totalInicial = contarNotas();
-  const { municipios, orgaos, codigosOrgao } = listarValoresDistintos();
+  const { municipios, orgaos, orgaosSuperior, codigosOrgao } =
+    listarValoresDistintos();
   const resumo = resumoNotas();
 
   return (
@@ -37,6 +38,7 @@ export default function NotasPage() {
             totalInicial={totalInicial}
             municipios={municipios}
             orgaos={orgaos}
+            orgaosSuperior={orgaosSuperior}
             codigosOrgao={codigosOrgao}
             resumo={resumo}
           />

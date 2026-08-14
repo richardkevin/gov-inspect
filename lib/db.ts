@@ -46,9 +46,11 @@ export type ItemRow = {
 export type FiltrosNotas = {
   q?: string;
   mes?: string;
-  codigoOrgao?: string;
-  municipio?: string;
-  orgao?: string;
+  codigoOrgao?: string[];
+  municipio?: string[];
+  orgao?: string[];
+  orgaoSuperior?: string[];
+  emitente?: string[];
   valorMin?: string;
   valorMax?: string;
   dataInicio?: string;
@@ -116,6 +118,23 @@ function normalizarLinha<T extends object>(linha: T): T {
   return normalizado as T;
 }
 
+function adicionarIn(
+  coluna: string,
+  valores: string[] | undefined,
+  clausulas: string[],
+  parametros: Record<string, string | number>,
+): void {
+  const limpos = (valores ?? [])
+    .map((v) => v.trim())
+    .filter((v) => v.length > 0);
+  if (limpos.length === 0) return;
+  const lugares = limpos.map((_v, i) => `@f${i}`).join(", ");
+  clausulas.push(`${coluna} IN (${lugares})`);
+  limpos.forEach((v, i) => {
+    parametros[`f${i}`] = v;
+  });
+}
+
 function montarWhere(filtros: FiltrosNotas): {
   clausulas: string[];
   parametros: Record<string, string | number>;
@@ -138,18 +157,11 @@ function montarWhere(filtros: FiltrosNotas): {
     clausulas.push("mes = @mes");
     parametros.mes = filtros.mes;
   }
-  if (filtros.codigoOrgao) {
-    clausulas.push("codigo_orgao = @codigoOrgao");
-    parametros.codigoOrgao = filtros.codigoOrgao.replace(/\D/g, "");
-  }
-  if (filtros.municipio) {
-    clausulas.push("municipio_emitente LIKE @municipio ESCAPE '\\'");
-    parametros.municipio = `%${escapeLike(filtros.municipio.trim())}%`;
-  }
-  if (filtros.orgao) {
-    clausulas.push("orgao LIKE @orgao ESCAPE '\\'");
-    parametros.orgao = `%${escapeLike(filtros.orgao.trim())}%`;
-  }
+  adicionarIn("codigo_orgao", filtros.codigoOrgao, clausulas, parametros);
+  adicionarIn("municipio_emitente", filtros.municipio, clausulas, parametros);
+  adicionarIn("orgao", filtros.orgao, clausulas, parametros);
+  adicionarIn("orgao_superior", filtros.orgaoSuperior, clausulas, parametros);
+  adicionarIn("razao_social_emitente", filtros.emitente, clausulas, parametros);
   if (filtros.valorMin) {
     const valorMin = parseValorBrasil(filtros.valorMin);
     if (valorMin !== null) {
@@ -229,12 +241,14 @@ export function listarItens(chave: string): ItemRow[] {
 let cacheListas: {
   municipios: string[];
   orgaos: string[];
+  orgaosSuperior: string[];
   codigosOrgao: string[];
 } | null = null;
 
 export function listarValoresDistintos(): {
   municipios: string[];
   orgaos: string[];
+  orgaosSuperior: string[];
   codigosOrgao: string[];
 } {
   if (cacheListas) return cacheListas;
@@ -250,9 +264,39 @@ export function listarValoresDistintos(): {
   cacheListas = {
     municipios: distintas("municipio_emitente"),
     orgaos: distintas("orgao"),
+    orgaosSuperior: distintas("orgao_superior"),
     codigosOrgao: distintas("codigo_orgao"),
   };
   return cacheListas;
+}
+
+export function buscarEmitentes(termo: string, limite = 50): string[] {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT DISTINCT razao_social_emitente AS v FROM nota
+       WHERE razao_social_emitente IS NOT NULL AND razao_social_emitente != ''
+         AND razao_social_emitente LIKE @termo ESCAPE '\\'
+       ORDER BY v LIMIT @limite`,
+    )
+    .all({ termo: `%${escapeLike(termo)}%`, limite }) as { v: string }[];
+  return rows.map((r) => r.v);
+}
+
+let cacheEmitentes: string[] | null = null;
+
+export function listarEmitentes(): string[] {
+  if (cacheEmitentes) return cacheEmitentes;
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT DISTINCT razao_social_emitente AS v FROM nota
+       WHERE razao_social_emitente IS NOT NULL AND razao_social_emitente != ''
+       ORDER BY v`,
+    )
+    .all() as { v: string }[];
+  cacheEmitentes = rows.map((r) => r.v);
+  return cacheEmitentes;
 }
 
 export function resumoNotas(): {

@@ -2,7 +2,6 @@
 
 import CloseIcon from "@mui/icons-material/Close";
 import SearchIcon from "@mui/icons-material/Search";
-import Autocomplete from "@mui/material/Autocomplete";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
@@ -43,16 +42,16 @@ type LinhaNota = {
   codigoOrgao: string | null;
   orgaoSuperior: string | null;
   valor: number | null;
-  tipoEvento: string | null;
-  dataEvento: string | null;
   mes: string;
 };
 
 type FiltrosDigitados = {
   q: string;
-  codigoOrgao: string;
-  municipio: string;
-  orgao: string;
+  codigoOrgao: string[];
+  municipio: string[];
+  orgao: string[];
+  orgaoSuperior: string[];
+  emitente: string[];
 };
 
 type DetalheNota = {
@@ -62,9 +61,11 @@ type DetalheNota = {
 
 const filtrosVazios: FiltrosDigitados = {
   q: "",
-  codigoOrgao: "",
-  municipio: "",
-  orgao: "",
+  codigoOrgao: [],
+  municipio: [],
+  orgao: [],
+  orgaoSuperior: [],
+  emitente: [],
 };
 
 function toLinha(nota: NotaRow): LinhaNota {
@@ -79,8 +80,6 @@ function toLinha(nota: NotaRow): LinhaNota {
     codigoOrgao: nota.codigoOrgao,
     orgaoSuperior: nota.orgaoSuperior,
     valor: nota.valor,
-    tipoEvento: nota.tipoEvento,
-    dataEvento: nota.dataEvento,
     mes: nota.mes,
   };
 }
@@ -109,6 +108,7 @@ export default function TabelaNotas({
   totalInicial,
   municipios,
   orgaos,
+  orgaosSuperior,
   codigosOrgao,
   resumo,
 }: {
@@ -116,6 +116,7 @@ export default function TabelaNotas({
   totalInicial: number;
   municipios: string[];
   orgaos: string[];
+  orgaosSuperior: string[];
   codigosOrgao: string[];
   resumo: { total: number; valorTotal: number | null; meses: number };
 }) {
@@ -133,6 +134,21 @@ export default function TabelaNotas({
     useState<FiltrosDigitados>(filtrosVazios);
   const [filtros, setFiltros] = useState<FiltrosDigitados>(filtrosVazios);
 
+  const [emitentes, setEmitentes] = useState<string[]>([]);
+
+  useEffect(() => {
+    let ativo = true;
+    fetch("/api/emitentes?todos=1")
+      .then((r) => r.json())
+      .then((data: { emitentes: string[] }) => {
+        if (ativo) setEmitentes(data.emitentes);
+      })
+      .catch(() => {});
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
   const [detalhe, setDetalhe] = useState<DetalheNota | null>(null);
   const [carregandoDetalhe, setCarregandoDetalhe] = useState(false);
   const [erroDetalhe, setErroDetalhe] = useState<string | null>(null);
@@ -145,9 +161,28 @@ export default function TabelaNotas({
       tamanhoPagina: String(paginationModel.pageSize),
     });
     if (filtros.q) params.set("q", filtros.q);
-    if (filtros.codigoOrgao) params.set("codigoOrgao", filtros.codigoOrgao);
-    if (filtros.municipio) params.set("municipio", filtros.municipio);
-    if (filtros.orgao) params.set("orgao", filtros.orgao);
+    if (
+      filtros.emitente.length > 0 &&
+      filtros.emitente.length < emitentes.length
+    )
+      for (const v of filtros.emitente) params.append("emitente", v);
+    if (
+      filtros.municipio.length > 0 &&
+      filtros.municipio.length < municipios.length
+    )
+      for (const v of filtros.municipio) params.append("municipio", v);
+    if (filtros.orgao.length > 0 && filtros.orgao.length < orgaos.length)
+      for (const v of filtros.orgao) params.append("orgao", v);
+    if (
+      filtros.orgaoSuperior.length > 0 &&
+      filtros.orgaoSuperior.length < orgaosSuperior.length
+    )
+      for (const v of filtros.orgaoSuperior) params.append("orgaoSuperior", v);
+    if (
+      filtros.codigoOrgao.length > 0 &&
+      filtros.codigoOrgao.length < codigosOrgao.length
+    )
+      for (const v of filtros.codigoOrgao) params.append("codigoOrgao", v);
     const sorteio = sortModel[0];
     if (sorteio?.sort) {
       params.set("sortField", sorteio.field);
@@ -261,19 +296,6 @@ export default function TabelaNotas({
         valueFormatter: (value: number | null) => fmtMoeda(value),
       },
       {
-        field: "tipoEvento",
-        headerName: "Evento",
-        width: 200,
-        renderCell: ({ row }) => (
-          <Stack>
-            <span>{row.tipoEvento}</span>
-            <Typography variant="caption" color="text.secondary">
-              {fmtData(row.dataEvento)}
-            </Typography>
-          </Stack>
-        ),
-      },
-      {
         field: "mes",
         headerName: "Mês",
         width: 100,
@@ -340,59 +362,50 @@ export default function TabelaNotas({
                 },
               }}
             />
-            <Autocomplete
-              size="small"
-              sx={{ width: 230 }}
-              options={municipios}
-              value={filtrosDigitados.municipio || null}
-              onChange={(_event, valor) =>
-                setFiltrosDigitados((f) => ({
-                  ...f,
-                  municipio: valor ?? "",
-                }))
+            <SelectMulti
+              label="Emitente"
+              opcoes={emitentes}
+              valor={filtrosDigitados.emitente}
+              aoMudar={(v) =>
+                setFiltrosDigitados((f) => ({ ...f, emitente: v }))
               }
-              renderInput={(params) => (
-                <TextField {...params} label="Município do emitente" />
-              )}
+              larguraMinima={280}
+              larguraMaxima={360}
             />
-            <Select
-              size="small"
-              displayEmpty
-              value={filtrosDigitados.orgao}
-              onChange={(e) =>
-                setFiltrosDigitados((f) => ({
-                  ...f,
-                  orgao: e.target.value as string,
-                }))
+            <SelectMulti
+              label="Município do emitente"
+              opcoes={municipios}
+              valor={filtrosDigitados.municipio}
+              aoMudar={(v) =>
+                setFiltrosDigitados((f) => ({ ...f, municipio: v }))
               }
-              sx={{ minWidth: 220, maxWidth: 340 }}
-            >
-              <MenuItem value="">Todos os órgãos destinatários</MenuItem>
-              {orgaos.map((o) => (
-                <MenuItem key={o} value={o}>
-                  {o}
-                </MenuItem>
-              ))}
-            </Select>
-            <Select
-              size="small"
-              displayEmpty
-              value={filtrosDigitados.codigoOrgao}
-              onChange={(e) =>
-                setFiltrosDigitados((f) => ({
-                  ...f,
-                  codigoOrgao: e.target.value as string,
-                }))
+              larguraMinima={230}
+            />
+            <SelectMulti
+              label="Órgão destinatário"
+              opcoes={orgaos}
+              valor={filtrosDigitados.orgao}
+              aoMudar={(v) => setFiltrosDigitados((f) => ({ ...f, orgao: v }))}
+              larguraMinima={230}
+            />
+            <SelectMulti
+              label="Órgão superior"
+              opcoes={orgaosSuperior}
+              valor={filtrosDigitados.orgaoSuperior}
+              aoMudar={(v) =>
+                setFiltrosDigitados((f) => ({ ...f, orgaoSuperior: v }))
               }
-              sx={{ minWidth: 150 }}
-            >
-              <MenuItem value="">Todos os códigos</MenuItem>
-              {codigosOrgao.map((c) => (
-                <MenuItem key={c} value={c}>
-                  {c}
-                </MenuItem>
-              ))}
-            </Select>
+              larguraMinima={230}
+            />
+            <SelectMulti
+              label="Código do órgão"
+              opcoes={codigosOrgao}
+              valor={filtrosDigitados.codigoOrgao}
+              aoMudar={(v) =>
+                setFiltrosDigitados((f) => ({ ...f, codigoOrgao: v }))
+              }
+              larguraMinima={160}
+            />
             <Button type="submit" variant="contained" disableElevation>
               Aplicar
             </Button>
@@ -620,6 +633,73 @@ function DetalheNotaPanel({ detalhe }: { detalhe: DetalheNota }) {
         )}
       </Box>
     </Box>
+  );
+}
+
+const MARCA_SELECIONAR_TODOS = "__selecionar_todos__";
+const MARCA_LIMPAR = "__limpar__";
+
+function SelectMulti({
+  label,
+  opcoes,
+  valor,
+  aoMudar,
+  larguraMinima,
+  larguraMaxima,
+}: {
+  label: string;
+  opcoes: string[];
+  valor: string[];
+  aoMudar: (valor: string[]) => void;
+  larguraMinima?: number;
+  larguraMaxima?: number;
+}) {
+  return (
+    <Stack sx={{ minWidth: larguraMinima, maxWidth: larguraMaxima }}>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      <Select
+        size="small"
+        multiple
+        displayEmpty
+        value={valor}
+        onChange={(e) => {
+          const atual = e.target.value as string[];
+          if (atual.includes(MARCA_SELECIONAR_TODOS)) {
+            aoMudar(opcoes);
+            return;
+          }
+          if (atual.includes(MARCA_LIMPAR)) {
+            aoMudar([]);
+            return;
+          }
+          aoMudar(atual);
+        }}
+        renderValue={(selecionados) => {
+          const limpos = selecionados.filter(
+            (v) => v !== MARCA_SELECIONAR_TODOS && v !== MARCA_LIMPAR,
+          );
+          if (limpos.length === 0 || limpos.length === opcoes.length)
+            return <span>Todos</span>;
+          return <span>{limpos.length} selecionados</span>;
+        }}
+        sx={{ minWidth: 130 }}
+      >
+        <MenuItem dense value={MARCA_SELECIONAR_TODOS}>
+          Selecionar todos
+        </MenuItem>
+        <MenuItem dense value={MARCA_LIMPAR}>
+          Limpar seleção
+        </MenuItem>
+        <Divider />
+        {opcoes.map((opcao) => (
+          <MenuItem key={opcao} value={opcao}>
+            {opcao}
+          </MenuItem>
+        ))}
+      </Select>
+    </Stack>
   );
 }
 
