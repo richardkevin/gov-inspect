@@ -238,67 +238,6 @@ export function listarItens(chave: string): ItemRow[] {
   return itens.map(normalizarLinha);
 }
 
-let cacheListas: {
-  municipios: string[];
-  orgaos: string[];
-  orgaosSuperior: string[];
-  codigosOrgao: string[];
-} | null = null;
-
-export function listarValoresDistintos(): {
-  municipios: string[];
-  orgaos: string[];
-  orgaosSuperior: string[];
-  codigosOrgao: string[];
-} {
-  if (cacheListas) return cacheListas;
-  const db = getDb();
-  const distintas = (coluna: string): string[] =>
-    (
-      db
-        .prepare(
-          `SELECT DISTINCT ${coluna} AS v FROM nota WHERE ${coluna} IS NOT NULL AND ${coluna} != '' ORDER BY v`,
-        )
-        .all() as { v: string }[]
-    ).map((r) => r.v);
-  cacheListas = {
-    municipios: distintas("municipio_emitente"),
-    orgaos: distintas("orgao"),
-    orgaosSuperior: distintas("orgao_superior"),
-    codigosOrgao: distintas("codigo_orgao"),
-  };
-  return cacheListas;
-}
-
-export function buscarEmitentes(termo: string, limite = 50): string[] {
-  const db = getDb();
-  const rows = db
-    .prepare(
-      `SELECT DISTINCT razao_social_emitente AS v FROM nota
-       WHERE razao_social_emitente IS NOT NULL AND razao_social_emitente != ''
-         AND razao_social_emitente LIKE @termo ESCAPE '\\'
-       ORDER BY v LIMIT @limite`,
-    )
-    .all({ termo: `%${escapeLike(termo)}%`, limite }) as { v: string }[];
-  return rows.map((r) => r.v);
-}
-
-let cacheEmitentes: string[] | null = null;
-
-export function listarEmitentes(): string[] {
-  if (cacheEmitentes) return cacheEmitentes;
-  const db = getDb();
-  const rows = db
-    .prepare(
-      `SELECT DISTINCT razao_social_emitente AS v FROM nota
-       WHERE razao_social_emitente IS NOT NULL AND razao_social_emitente != ''
-       ORDER BY v`,
-    )
-    .all() as { v: string }[];
-  cacheEmitentes = rows.map((r) => r.v);
-  return cacheEmitentes;
-}
-
 export function resumoNotas(): {
   total: number;
   valorTotal: number | null;

@@ -4,15 +4,15 @@ import CloseIcon from "@mui/icons-material/Close";
 import SearchIcon from "@mui/icons-material/Search";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
 import Drawer from "@mui/material/Drawer";
 import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
-import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
-import Select from "@mui/material/Select";
+import Popover from "@mui/material/Popover";
 import Stack from "@mui/material/Stack";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
@@ -106,18 +106,10 @@ function fmtChave(chave: string): string {
 export default function TabelaNotas({
   notasIniciais,
   totalInicial,
-  municipios,
-  orgaos,
-  orgaosSuperior,
-  codigosOrgao,
   resumo,
 }: {
   notasIniciais: NotaRow[];
   totalInicial: number;
-  municipios: string[];
-  orgaos: string[];
-  orgaosSuperior: string[];
-  codigosOrgao: string[];
   resumo: { total: number; valorTotal: number | null; meses: number };
 }) {
   const [linhas, setLinhas] = useState<LinhaNota[]>(() =>
@@ -134,26 +126,36 @@ export default function TabelaNotas({
     useState<FiltrosDigitados>(filtrosVazios);
   const [filtros, setFiltros] = useState<FiltrosDigitados>(filtrosVazios);
 
-  const [emitentes, setEmitentes] = useState<string[]>([]);
-
-  useEffect(() => {
-    let ativo = true;
-    fetch("/api/emitentes?todos=1")
-      .then((r) => r.json())
-      .then((data: { emitentes: string[] }) => {
-        if (ativo) setEmitentes(data.emitentes);
-      })
-      .catch(() => {});
-    return () => {
-      ativo = false;
-    };
-  }, []);
-
   const [detalhe, setDetalhe] = useState<DetalheNota | null>(null);
   const [carregandoDetalhe, setCarregandoDetalhe] = useState(false);
   const [erroDetalhe, setErroDetalhe] = useState<string | null>(null);
 
   const primeiroRender = useRef(true);
+
+  const opcoesDaVisao = useMemo(() => {
+    const distintos = (
+      campo:
+        | "razaoSocialEmitente"
+        | "municipioEmitente"
+        | "orgao"
+        | "orgaoSuperior"
+        | "codigoOrgao",
+    ): string[] =>
+      [
+        ...new Set(
+          linhas
+            .map((linha) => linha[campo])
+            .filter((v): v is string => v != null),
+        ),
+      ].sort((a, b) => a.localeCompare(b, "pt-BR"));
+    return {
+      emitentes: distintos("razaoSocialEmitente"),
+      municipios: distintos("municipioEmitente"),
+      orgaos: distintos("orgao"),
+      orgaosSuperior: distintos("orgaoSuperior"),
+      codigosOrgao: distintos("codigoOrgao"),
+    };
+  }, [linhas]);
 
   const carregar = useCallback(async () => {
     const params = new URLSearchParams({
@@ -161,28 +163,11 @@ export default function TabelaNotas({
       tamanhoPagina: String(paginationModel.pageSize),
     });
     if (filtros.q) params.set("q", filtros.q);
-    if (
-      filtros.emitente.length > 0 &&
-      filtros.emitente.length < emitentes.length
-    )
-      for (const v of filtros.emitente) params.append("emitente", v);
-    if (
-      filtros.municipio.length > 0 &&
-      filtros.municipio.length < municipios.length
-    )
-      for (const v of filtros.municipio) params.append("municipio", v);
-    if (filtros.orgao.length > 0 && filtros.orgao.length < orgaos.length)
-      for (const v of filtros.orgao) params.append("orgao", v);
-    if (
-      filtros.orgaoSuperior.length > 0 &&
-      filtros.orgaoSuperior.length < orgaosSuperior.length
-    )
-      for (const v of filtros.orgaoSuperior) params.append("orgaoSuperior", v);
-    if (
-      filtros.codigoOrgao.length > 0 &&
-      filtros.codigoOrgao.length < codigosOrgao.length
-    )
-      for (const v of filtros.codigoOrgao) params.append("codigoOrgao", v);
+    for (const v of filtros.emitente) params.append("emitente", v);
+    for (const v of filtros.municipio) params.append("municipio", v);
+    for (const v of filtros.orgao) params.append("orgao", v);
+    for (const v of filtros.orgaoSuperior) params.append("orgaoSuperior", v);
+    for (const v of filtros.codigoOrgao) params.append("codigoOrgao", v);
     const sorteio = sortModel[0];
     if (sorteio?.sort) {
       params.set("sortField", sorteio.field);
@@ -364,7 +349,7 @@ export default function TabelaNotas({
             />
             <SelectMulti
               label="Emitente"
-              opcoes={emitentes}
+              opcoes={opcoesDaVisao.emitentes}
               valor={filtrosDigitados.emitente}
               aoMudar={(v) =>
                 setFiltrosDigitados((f) => ({ ...f, emitente: v }))
@@ -374,7 +359,7 @@ export default function TabelaNotas({
             />
             <SelectMulti
               label="Município do emitente"
-              opcoes={municipios}
+              opcoes={opcoesDaVisao.municipios}
               valor={filtrosDigitados.municipio}
               aoMudar={(v) =>
                 setFiltrosDigitados((f) => ({ ...f, municipio: v }))
@@ -383,14 +368,14 @@ export default function TabelaNotas({
             />
             <SelectMulti
               label="Órgão destinatário"
-              opcoes={orgaos}
+              opcoes={opcoesDaVisao.orgaos}
               valor={filtrosDigitados.orgao}
               aoMudar={(v) => setFiltrosDigitados((f) => ({ ...f, orgao: v }))}
               larguraMinima={230}
             />
             <SelectMulti
               label="Órgão superior"
-              opcoes={orgaosSuperior}
+              opcoes={opcoesDaVisao.orgaosSuperior}
               valor={filtrosDigitados.orgaoSuperior}
               aoMudar={(v) =>
                 setFiltrosDigitados((f) => ({ ...f, orgaoSuperior: v }))
@@ -399,7 +384,7 @@ export default function TabelaNotas({
             />
             <SelectMulti
               label="Código do órgão"
-              opcoes={codigosOrgao}
+              opcoes={opcoesDaVisao.codigosOrgao}
               valor={filtrosDigitados.codigoOrgao}
               aoMudar={(v) =>
                 setFiltrosDigitados((f) => ({ ...f, codigoOrgao: v }))
@@ -636,8 +621,8 @@ function DetalheNotaPanel({ detalhe }: { detalhe: DetalheNota }) {
   );
 }
 
-const MARCA_SELECIONAR_TODOS = "__selecionar_todos__";
-const MARCA_LIMPAR = "__limpar__";
+const LIMITE_SEM_BUSCA = 400;
+const MAX_EXIBIDOS = 400;
 
 function SelectMulti({
   label,
@@ -654,52 +639,155 @@ function SelectMulti({
   larguraMinima?: number;
   larguraMaxima?: number;
 }) {
+  const [aberto, setAberto] = useState(false);
+  const [busca, setBusca] = useState("");
+  const ancoraRef = useRef<HTMLButtonElement | null>(null);
+
+  const resumo = valor.length === 0 ? "Todos" : `${valor.length} selecionados`;
+
+  const precisaBusca = opcoes.length > LIMITE_SEM_BUSCA;
+  const haBusca = busca.trim().length > 0;
+
+  const opcoesFiltradas = useMemo(() => {
+    if (!precisaBusca) return opcoes;
+    const termo = busca.trim().toLowerCase();
+    if (!termo) return [];
+    return opcoes.filter((o) => o.toLowerCase().includes(termo));
+  }, [busca, opcoes, precisaBusca]);
+
+  const truncadas = opcoesFiltradas.length > MAX_EXIBIDOS;
+  const exibidas = truncadas
+    ? opcoesFiltradas.slice(0, MAX_EXIBIDOS)
+    : opcoesFiltradas;
+
+  const fechar = () => {
+    setAberto(false);
+    setBusca("");
+  };
+
+  const alternar = (opcao: string) => {
+    aoMudar(
+      valor.includes(opcao)
+        ? valor.filter((v) => v !== opcao)
+        : [...valor, opcao],
+    );
+  };
+
   return (
-    <Stack sx={{ minWidth: larguraMinima, maxWidth: larguraMaxima }}>
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-      <Select
-        size="small"
-        multiple
-        displayEmpty
-        value={valor}
-        onChange={(e) => {
-          const atual = e.target.value as string[];
-          if (atual.includes(MARCA_SELECIONAR_TODOS)) {
-            aoMudar(opcoes);
-            return;
-          }
-          if (atual.includes(MARCA_LIMPAR)) {
-            aoMudar([]);
-            return;
-          }
-          aoMudar(atual);
+    <>
+      <Button
+        ref={ancoraRef}
+        variant="outlined"
+        color="inherit"
+        onClick={() => setAberto(true)}
+        sx={{
+          minWidth: larguraMinima,
+          maxWidth: larguraMaxima,
+          textTransform: "none",
+          flexDirection: "column",
+          alignItems: "flex-start",
+          gap: 0.25,
+          px: 1.5,
+          py: 0.75,
         }}
-        renderValue={(selecionados) => {
-          const limpos = selecionados.filter(
-            (v) => v !== MARCA_SELECIONAR_TODOS && v !== MARCA_LIMPAR,
-          );
-          if (limpos.length === 0 || limpos.length === opcoes.length)
-            return <span>Todos</span>;
-          return <span>{limpos.length} selecionados</span>;
-        }}
-        sx={{ minWidth: 130 }}
       >
-        <MenuItem dense value={MARCA_SELECIONAR_TODOS}>
-          Selecionar todos
-        </MenuItem>
-        <MenuItem dense value={MARCA_LIMPAR}>
-          Limpar seleção
-        </MenuItem>
-        <Divider />
-        {opcoes.map((opcao) => (
-          <MenuItem key={opcao} value={opcao}>
-            {opcao}
-          </MenuItem>
-        ))}
-      </Select>
-    </Stack>
+        <Typography
+          variant="caption"
+          component="span"
+          sx={{ color: "text.secondary", lineHeight: 1.2 }}
+        >
+          {label}
+        </Typography>
+        <span>{resumo}</span>
+      </Button>
+      <Popover
+        open={aberto}
+        anchorEl={ancoraRef.current}
+        onClose={fechar}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        slotProps={{ paper: { sx: { width: 380 } } }}
+      >
+        <Stack sx={{ p: 1, gap: 1 }}>
+          {precisaBusca && (
+            <TextField
+              size="small"
+              autoFocus
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder={`Buscar entre ${opcoes.length.toLocaleString("pt-BR")} opções…`}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+          )}
+          <Stack direction="row" spacing={1}>
+            <Button size="small" onClick={() => aoMudar(opcoes)}>
+              Selecionar todos
+            </Button>
+            <Button size="small" onClick={() => aoMudar([])}>
+              Limpar
+            </Button>
+          </Stack>
+          <Divider />
+          {precisaBusca && !haBusca ? (
+            <Typography variant="body2" color="text.secondary" sx={{ p: 1 }}>
+              Digite para buscar entre {opcoes.length.toLocaleString("pt-BR")}{" "}
+              opções.
+            </Typography>
+          ) : exibidas.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ p: 1 }}>
+              Nenhum resultado.
+            </Typography>
+          ) : (
+            <Box sx={{ maxHeight: 320, overflowY: "auto" }}>
+              {exibidas.map((opcao) => (
+                <Box
+                  key={opcao}
+                  onClick={() => alternar(opcao)}
+                  sx={{
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    px: 1,
+                    py: 0.25,
+                    borderRadius: 1,
+                    cursor: "pointer",
+                    "&:hover": { bgcolor: "action.hover" },
+                  }}
+                >
+                  <Checkbox
+                    checked={valor.includes(opcao)}
+                    size="small"
+                    disableRipple
+                    tabIndex={-1}
+                  />
+                  <Typography variant="body2" noWrap>
+                    {opcao}
+                  </Typography>
+                </Box>
+              ))}
+              {truncadas && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ p: 1 }}
+                >
+                  Mostrando {exibidas.length} de{" "}
+                  {opcoesFiltradas.length.toLocaleString("pt-BR")} — refine a
+                  busca.
+                </Typography>
+              )}
+            </Box>
+          )}
+        </Stack>
+      </Popover>
+    </>
   );
 }
 
