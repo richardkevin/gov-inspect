@@ -137,7 +137,7 @@ export default function TabelaNotas({
   const [loading, setLoading] = useState(false);
   const [paginationModel, setPaginationModel] = useState({
     page: 0,
-    pageSize: 25,
+    pageSize: 100,
   });
   const [sortModel, setSortModel] = useState<GridSortModel>([]);
   const [filtrosDigitados, setFiltrosDigitados] = useState<FiltrosDigitados>(
@@ -414,7 +414,7 @@ export default function TabelaNotas({
             onPaginationModelChange={setPaginationModel}
             sortModel={sortModel}
             onSortModelChange={setSortModel}
-            pageSizeOptions={[25, 50, 100]}
+            pageSizeOptions={[100, 200, 500]}
             loading={loading}
             disableRowSelectionOnClick
             onRowClick={(params) => {
