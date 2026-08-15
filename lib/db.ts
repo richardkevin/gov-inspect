@@ -123,15 +123,16 @@ function adicionarIn(
   valores: string[] | undefined,
   clausulas: string[],
   parametros: Record<string, string | number>,
+  prefixo: string,
 ): void {
   const limpos = (valores ?? [])
     .map((v) => v.trim())
     .filter((v) => v.length > 0);
   if (limpos.length === 0) return;
-  const lugares = limpos.map((_v, i) => `@f${i}`).join(", ");
+  const lugares = limpos.map((_v, i) => `@${prefixo}${i}`).join(", ");
   clausulas.push(`${coluna} IN (${lugares})`);
   limpos.forEach((v, i) => {
-    parametros[`f${i}`] = v;
+    parametros[`${prefixo}${i}`] = v;
   });
 }
 
@@ -153,12 +154,36 @@ function montarWhere(filtros: FiltrosNotas): {
     )`);
     parametros.q = q;
   }
-  adicionarIn("mes", filtros.mes, clausulas, parametros);
-  adicionarIn("codigo_orgao", filtros.codigoOrgao, clausulas, parametros);
-  adicionarIn("municipio_emitente", filtros.municipio, clausulas, parametros);
-  adicionarIn("orgao", filtros.orgao, clausulas, parametros);
-  adicionarIn("orgao_superior", filtros.orgaoSuperior, clausulas, parametros);
-  adicionarIn("razao_social_emitente", filtros.emitente, clausulas, parametros);
+  adicionarIn("mes", filtros.mes, clausulas, parametros, "mes");
+  adicionarIn(
+    "codigo_orgao",
+    filtros.codigoOrgao,
+    clausulas,
+    parametros,
+    "codigoOrgao",
+  );
+  adicionarIn(
+    "municipio_emitente",
+    filtros.municipio,
+    clausulas,
+    parametros,
+    "municipio",
+  );
+  adicionarIn("orgao", filtros.orgao, clausulas, parametros, "orgao");
+  adicionarIn(
+    "orgao_superior",
+    filtros.orgaoSuperior,
+    clausulas,
+    parametros,
+    "orgaoSuperior",
+  );
+  adicionarIn(
+    "razao_social_emitente",
+    filtros.emitente,
+    clausulas,
+    parametros,
+    "emitente",
+  );
   if (filtros.valorMin) {
     const valorMin = parseValorBrasil(filtros.valorMin);
     if (valorMin !== null) {
