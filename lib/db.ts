@@ -87,9 +87,10 @@ let db: Database.Database | null = null;
 
 function getDb(): Database.Database {
   if (!db) {
-    db = new Database(path.join(process.cwd(), "data", "db", "notas.db"), {
-      readonly: true,
-    });
+    const caminho =
+      process.env.NF_DB_PATH ??
+      path.join(process.cwd(), "data", "db", "notas.db");
+    db = new Database(caminho, { readonly: true });
     db.pragma("journal_mode = WAL");
   }
   return db;

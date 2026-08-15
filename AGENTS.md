@@ -17,6 +17,7 @@ Navegador de Notas Fiscais Eletrônicas do Poder Executivo Federal (dados aberto
 - Dev/build: `npm run dev` | `npm run build` | `npm run start`
 - Lint = `biome check` (não auto-corrige). Formatação de imports só com `npx biome check --write` — o script `npm run format` (`biome format --write`) NÃO reordena imports.
 - Typecheck (não há script): `npx tsc --noEmit` (`npm run build` também checa tipos).
+- Testes: `npm test` (vitest run) | `npm run test:watch`. Testes em `lib/*.test.ts` e `app/_components/*.test.tsx`; o `db.test.ts` cria um banco temporário em WAL (não usa `data/`) e o `TabelaNotas.test.tsx` roda em jsdom (`// @vitest-environment jsdom`) com DataGrid mockado e fetch stubado.
 - Dados: `npm run dados:baixar` baixa os ZIPs de NFe 2026 da CGU para `data/csv`; `npm run dados:importar` gera `data/db/notas.db` a partir dos CSVs. `data/` é gitignored e o app abre o banco somente-leitura — em clone novo a tabela só funciona após rodar os dois scripts.
 
 ## Arquitetura
@@ -40,4 +41,5 @@ Navegador de Notas Fiscais Eletrônicas do Poder Executivo Federal (dados aberto
 ## Gotchas
 
 - `next.config.ts` define `reactCompiler: true` e `serverExternalPackages: ["better-sqlite3"]` — o nativo do better-sqlite3 não pode ser bundled pelo Next.
+- `lib/db.ts` abre o banco readonly e suporta `NF_DB_PATH` (env) para apontar outro arquivo — usado pelos testes; o padrão é `data/db/notas.db`.
 - Após adicionar/remover route handlers, o `.next` guarda tipos obsoletos e o `next build` falha com erros de tipo de rotas deletadas → `rm -rf .next` antes de buildar.

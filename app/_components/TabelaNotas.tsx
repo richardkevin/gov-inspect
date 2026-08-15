@@ -68,7 +68,7 @@ const filtrosVazios: FiltrosDigitados = {
   emitente: [],
 };
 
-function toLinha(nota: NotaRow): LinhaNota {
+export function toLinha(nota: NotaRow): LinhaNota {
   return {
     id: nota.chave,
     chave: nota.chave,
@@ -84,7 +84,7 @@ function toLinha(nota: NotaRow): LinhaNota {
   };
 }
 
-const fmtMoeda = (v: number | null): string =>
+export const fmtMoeda = (v: number | null): string =>
   v == null
     ? "—"
     : new Intl.NumberFormat("pt-BR", {
@@ -92,14 +92,14 @@ const fmtMoeda = (v: number | null): string =>
         currency: "BRL",
       }).format(v);
 
-const fmtData = (v: string | null): string => {
+export const fmtData = (v: string | null): string => {
   if (!v) return "—";
   const d = new Date(v.replace(" ", "T"));
   if (Number.isNaN(d.getTime())) return v;
   return new Intl.DateTimeFormat("pt-BR").format(d);
 };
 
-function fmtChave(chave: string): string {
+export function fmtChave(chave: string): string {
   return `${chave.slice(0, 4)} ${chave.slice(4, 8)} ${chave.slice(8, 12)} ${chave.slice(12, 16)} ${chave.slice(16, 20)} ${chave.slice(20, 24)} ${chave.slice(24, 34)} ${chave.slice(34, 44)}`;
 }
 
