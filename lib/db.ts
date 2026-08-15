@@ -248,12 +248,17 @@ export function opcoesDoRecorte(
         linhas.map(campo).filter((v): v is string => v != null && v !== ""),
       ),
     ].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const meses = (
+    getDb().prepare("SELECT DISTINCT mes FROM nota ORDER BY mes").all() as {
+      mes: string;
+    }[]
+  ).map((linha) => linha.mes);
   return {
     emitentes: distintos((n) => n.razaoSocialEmitente),
     municipios: distintos((n) => n.municipioEmitente),
     orgaos: distintos((n) => n.orgao),
     orgaosSuperior: distintos((n) => n.orgaoSuperior),
-    meses: distintos((n) => n.mes),
+    meses,
   };
 }
 

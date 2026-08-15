@@ -111,14 +111,6 @@ type OpcoesVisao = {
   meses: string[];
 };
 
-const opcoesVazias: OpcoesVisao = {
-  emitentes: [],
-  municipios: [],
-  orgaos: [],
-  orgaosSuperior: [],
-  meses: [],
-};
-
 export default function TabelaNotas({
   notasIniciais,
   opcoesIniciais,
@@ -357,6 +349,14 @@ export default function TabelaNotas({
                   ),
                 },
               }}
+            />
+            <SelectMulti
+              label="Mês"
+              opcoes={opcoesComSelecionados.meses}
+              valor={filtrosDigitados.meses}
+              aoMudar={(v) => setFiltrosDigitados((f) => ({ ...f, meses: v }))}
+              formatarOpcao={(mes) => `${mes.slice(5, 7)}/${mes.slice(0, 4)}`}
+              larguraMinima={130}
             />
             <SelectMulti
               label="Emitente"
@@ -768,7 +768,7 @@ function SelectMulti({
                     tabIndex={-1}
                   />
                   <Typography variant="body2" noWrap>
-                    {opcao}
+                    {formatarOpcao ? formatarOpcao(opcao) : opcao}
                   </Typography>
                 </Box>
               ))}
