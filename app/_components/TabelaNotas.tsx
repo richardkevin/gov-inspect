@@ -111,6 +111,20 @@ type OpcoesVisao = {
   meses: string[];
 };
 
+function acumularOpcoes(prev: OpcoesVisao, novas: OpcoesVisao): OpcoesVisao {
+  const uniao = (a: string[], b: string[]): string[] =>
+    [...new Set([...a, ...b].filter((v) => v !== ""))].sort((x, y) =>
+      x.localeCompare(y, "pt-BR"),
+    );
+  return {
+    emitentes: uniao(prev.emitentes, novas.emitentes),
+    municipios: uniao(prev.municipios, novas.municipios),
+    orgaos: uniao(prev.orgaos, novas.orgaos),
+    orgaosSuperior: uniao(prev.orgaosSuperior, novas.orgaosSuperior),
+    meses: uniao(prev.meses, novas.meses),
+  };
+}
+
 export default function TabelaNotas({
   notasIniciais,
   opcoesIniciais,
@@ -192,7 +206,9 @@ export default function TabelaNotas({
       };
       setLinhas(data.notas.map(toLinha));
       setTotal(data.total);
-      if (data.opcoes) setOpcoesDaVisao(data.opcoes);
+      const opcoesNovas = data.opcoes;
+      if (opcoesNovas)
+        setOpcoesDaVisao((prev) => acumularOpcoes(prev, opcoesNovas));
     } catch {
       setLinhas([]);
       setTotal(0);
