@@ -91,7 +91,7 @@
 }
 
 .navTabs a.active {
-  color: #fff;
+  color: var(--accent-contrast);
   background: var(--accent);
   border-color: var(--accent);
 }
@@ -178,7 +178,7 @@
   padding: 10px 18px;
   font-size: 14px;
   font-weight: 600;
-  color: #fff;
+  color: var(--accent-contrast);
   background: var(--accent);
   border: 1px solid transparent;
   border-radius: 8px;

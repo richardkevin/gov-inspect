@@ -10,15 +10,17 @@ const theme = createTheme({
   colorSchemes: {
     light: {
       palette: {
-        primary: { main: "#0b6e4f" },
+        primary: { main: "#0b6e4f", contrastText: "#ffffff" },
         background: { default: "#ffffff", paper: "#ffffff" },
+        text: { primary: "#171717", secondary: "#6b7280" },
         divider: "#e5e7eb",
       },
     },
     dark: {
       palette: {
-        primary: { main: "#34d399" },
+        primary: { main: "#34d399", contrastText: "#171717" },
         background: { default: "#0a0a0a", paper: "#111113" },
+        text: { primary: "#ededed", secondary: "#9ca3af" },
         divider: "#26262a",
       },
     },
